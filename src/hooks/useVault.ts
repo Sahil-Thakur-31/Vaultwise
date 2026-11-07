@@ -7,6 +7,7 @@ import {
   VaultItem,
   VaultItemType,
   VaultScope,
+  UserProfile,
 } from "@/types/vault";
 import {
   STARTER_MEMBERS,
@@ -21,10 +22,25 @@ import { useVaultCrypto } from "@/context/VaultCryptoContext";
 
 export type { FilterCategory };
 
+const DEFAULT_USER_PROFILE: UserProfile = {
+  name: "Sahil Thakur",
+  email: "sahilthakur3109@gmail.com",
+  avatarColor: "slate",
+};
+
 export function useVault() {
   const { logAuditEvent } = useVaultCrypto();
   const [scope, setScope] = useState<VaultScope>("personal");
-  const [activeAccount, setActiveAccount] = useState("Sahil Kumar");
+  const [userProfile, setUserProfile] = useLocalStorage<UserProfile>(
+    STORAGE_KEYS.USER_PROFILE,
+    DEFAULT_USER_PROFILE
+  );
+  const [activeAccount, setActiveAccount] = useState(userProfile.name || "Sahil Thakur");
+
+  const updateUserProfile = (newProfile: UserProfile) => {
+    setUserProfile(newProfile);
+    setActiveAccount(newProfile.name);
+  };
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<FilterCategory>("all");
   const [sortOption, setSortOption] = useState<SortOption>("updated");
@@ -444,6 +460,8 @@ export function useVault() {
   return {
     scope,
     setScope,
+    userProfile,
+    updateUserProfile,
     activeAccount,
     setActiveAccount,
     query,

@@ -253,4 +253,5 @@ export const STORAGE_KEYS = {
   ORGANIZATION_ITEMS: "vaultwise-northstar-items",
   MEMBERS: "vaultwise-members",
   THEME: "vaultwise-theme-mode",
+  USER_PROFILE: "vaultwise-user-profile",
 } as const;

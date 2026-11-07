@@ -26,6 +26,7 @@ import { InviteMemberModal } from "@/components/members/InviteMemberModal";
 import { QuickCommandPalette } from "@/components/common/QuickCommandPalette";
 import { KeyboardShortcutsModal } from "@/components/common/KeyboardShortcutsModal";
 import { ManageFolderItemsModal } from "@/components/vault/ManageFolderItemsModal";
+import { EditProfileModal } from "@/components/profile/EditProfileModal";
 import { useSecurityShield } from "@/hooks/useSecurityShield";
 import { PrivacyShieldScreen } from "@/components/common/PrivacyShieldScreen";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -47,6 +48,7 @@ function HomeContent() {
   const [showAccounts, setShowAccounts] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [folderToManage, setFolderToManage] = useState<FolderType | null>(null);
   const [prefilledPassword, setPrefilledPassword] = useState<string | undefined>();
   const [preselectedFolderId, setPreselectedFolderId] = useState<string | undefined>();
@@ -67,6 +69,8 @@ function HomeContent() {
   const {
     scope,
     setScope,
+    userProfile,
+    updateUserProfile,
     activeAccount,
     setActiveAccount,
     query,
@@ -322,23 +326,22 @@ function HomeContent() {
                 }
               }}
               scope={scope}
-              activeAccount={activeAccount}
+              userProfile={userProfile}
               onNotify={notify}
-              userInitials={scope === "personal" ? "SK" : "NS"}
               theme={theme}
               onToggleTheme={setTheme}
               onOpenCommandPalette={() => setShowCommandPalette(true)}
               density={settings.density || "comfortable"}
-              onToggleDensity={() =>
-                updateSettings({
-                  density: settings.density === "compact" ? "comfortable" : "compact",
-                })
+              onToggleDensity={(newDensity) =>
+                updateSettings({ density: newDensity })
               }
               onLockVault={() => {
                 lock();
                 notify("Vault locked");
               }}
               onOpenShortcuts={() => setShowShortcutsModal(true)}
+              onOpenEditProfile={() => setIsEditProfileOpen(true)}
+              onNavigateToSettings={() => handleSelectView("settings")}
             />
 
             {/* Dynamic Views */}
@@ -535,6 +538,19 @@ function HomeContent() {
             isOpen={showShortcutsModal}
             onClose={() => setShowShortcutsModal(false)}
           />
+
+          {/* Edit Profile Modal */}
+          {isEditProfileOpen && (
+            <EditProfileModal
+              profile={userProfile}
+              scope={scope}
+              onSave={(updated) => {
+                updateUserProfile(updated);
+                notify("Profile details updated successfully");
+              }}
+              onClose={() => setIsEditProfileOpen(false)}
+            />
+          )}
 
           {/* Global Right-Click Context Menu */}
           <ContextMenu />

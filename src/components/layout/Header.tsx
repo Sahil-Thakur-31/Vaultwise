@@ -1,63 +1,55 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
-  AlignJustify,
   Command,
   Laptop,
   Lock,
   Moon,
-  RefreshCw,
   Search,
   Shield,
   Sun,
   WifiOff,
 } from "lucide-react";
-import { ThemeMode, UiDensity, VaultScope } from "@/types/vault";
+import { ThemeMode, UiDensity, UserProfile, VaultScope } from "@/types/vault";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { ProfileDropdown } from "./ProfileDropdown";
 
 interface HeaderProps {
   query: string;
   onQueryChange: (query: string) => void;
   scope: VaultScope;
-  activeAccount: string;
+  userProfile: UserProfile;
   onNotify: (msg: string) => void;
-  userInitials?: string;
   theme: ThemeMode;
   onToggleTheme: (theme: ThemeMode) => void;
   onOpenCommandPalette?: () => void;
-  density?: UiDensity;
-  onToggleDensity?: () => void;
+  density: UiDensity;
+  onToggleDensity: (newDensity: UiDensity) => void;
   onLockVault?: () => void;
   onOpenShortcuts?: () => void;
+  onOpenEditProfile: () => void;
+  onNavigateToSettings: () => void;
 }
 
 export function Header({
   query,
   onQueryChange,
   scope,
-  activeAccount,
+  userProfile,
   onNotify,
-  userInitials = "SK",
   theme,
   onToggleTheme,
   onOpenCommandPalette,
-  density = "comfortable",
+  density,
   onToggleDensity,
   onLockVault,
   onOpenShortcuts,
+  onOpenEditProfile,
+  onNavigateToSettings,
 }: HeaderProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { isOnline } = useNetworkStatus();
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  const handleSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      onNotify("Vault synchronized with cryptographic enclave (AES-256)");
-    }, 600);
-  };
 
   // Shortcut ⌘K / Ctrl+K focus
   useEffect(() => {
@@ -73,48 +65,36 @@ export function Header({
 
   return (
     <header className="sticky top-0 z-20 flex h-12 items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-card)] px-4 sm:px-6 select-none transition-colors">
-      {/* Left: Active context label */}
-      <div className="flex items-center gap-2.5">
-        <span className="text-xs font-semibold text-[var(--text-primary)]">
-          {activeAccount}
-        </span>
-        <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-app)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
-          {scope === "personal" ? "Personal" : "Organization"}
-        </span>
-
-        {/* Network & Zero-Knowledge Security Badge */}
+      {/* Left: Minimal, quiet security badge */}
+      <div className="flex items-center gap-2">
         {isOnline ? (
-          <span className="hidden md:flex items-center gap-1 rounded border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 animate-fade-in shadow-2xs">
-            <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <Shield className="size-2.5" />
-            Zero-Knowledge Active
+          <span
+            className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-medium text-emerald-400 shadow-2xs"
+            title="Zero-knowledge client-side encryption active (AES-GCM-256) with automatic background sync"
+          >
+            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <Shield className="size-3" />
+            <span className="hidden sm:inline">Zero-Knowledge Enclave</span>
           </span>
         ) : (
           <span
-            onClick={() => onNotify("Vault operates offline with local AES-256 storage. Reconnects automatically when online.")}
-            className="flex items-center gap-1.5 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 animate-fade-in cursor-pointer hover:bg-amber-500/20 transition"
+            onClick={() =>
+              onNotify(
+                "Vault operates offline with local AES-256 storage. Reconnects automatically when online."
+              )
+            }
+            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-medium text-amber-400 cursor-pointer hover:bg-amber-500/20 transition"
             title="Local offline encrypted storage is active"
           >
             <WifiOff className="size-3" />
-            Offline Mode • Local Storage
+            <span>Offline Mode</span>
           </span>
         )}
-
-        {/* Sync Vault Button */}
-        <button
-          type="button"
-          onClick={handleSync}
-          className="hidden lg:flex items-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-app)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-blue-500/40 transition cursor-pointer"
-          title="Force cryptographic synchronization with local enclave"
-        >
-          <RefreshCw className={`size-2.5 ${isSyncing ? "animate-spin text-blue-500" : ""}`} />
-          Sync
-        </button>
       </div>
 
       {/* Center: Search input */}
-      <div className="w-72 sm:w-80 max-w-sm">
-        <label className="flex h-7.5 items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--input-bg)] px-2.5 text-[var(--text-muted)] focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] transition">
+      <div className="w-72 sm:w-96 max-w-md mx-2">
+        <label className="flex h-8 items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--input-bg)] px-3 text-[var(--text-muted)] focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] transition">
           <Search className="size-3.5 shrink-0" />
           <input
             ref={searchInputRef}
@@ -127,13 +107,13 @@ export function Header({
             <button
               type="button"
               onClick={onOpenCommandPalette}
-              className="hidden sm:inline rounded border border-[var(--border-subtle)] bg-[var(--bg-app)] px-1.5 py-0.2 text-[9px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-blue-500 cursor-pointer transition"
+              className="hidden sm:inline rounded border border-[var(--border-subtle)] bg-[var(--bg-app)] px-1.5 py-0.5 text-[9px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-blue-500 cursor-pointer transition"
               title="Open Spotlight Command Palette (⌘K)"
             >
               ⌘K
             </button>
           ) : (
-            <kbd className="hidden sm:inline rounded border border-[var(--border-subtle)] bg-[var(--bg-app)] px-1.5 py-0.2 text-[9px] font-mono text-[var(--text-muted)]">
+            <kbd className="hidden sm:inline rounded border border-[var(--border-subtle)] bg-[var(--bg-app)] px-1.5 py-0.5 text-[9px] font-mono text-[var(--text-muted)]">
               ⌘K
             </kbd>
           )}
@@ -142,25 +122,12 @@ export function Header({
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">
-        {/* Density Toggle (Compact vs Comfortable) */}
-        {onToggleDensity && (
-          <button
-            type="button"
-            onClick={onToggleDensity}
-            className="flex items-center gap-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-app)] px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition cursor-pointer"
-            title={`Toggle layout density (Current: ${density})`}
-          >
-            <AlignJustify className="size-3 text-blue-500" />
-            <span className="hidden xl:inline text-[10px] capitalize">{density}</span>
-          </button>
-        )}
-
         {/* Theme Segmented Switcher */}
-        <div className="flex items-center rounded-md border border-[var(--border-subtle)] bg-[var(--bg-app)] p-0.5">
+        <div className="flex items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-app)] p-0.5">
           <button
             type="button"
             onClick={() => onToggleTheme("system")}
-            className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium transition ${
+            className={`flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition cursor-pointer ${
               theme === "system"
                 ? "bg-[var(--bg-card)] text-[var(--text-primary)] shadow-2xs font-semibold"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -172,7 +139,7 @@ export function Header({
           <button
             type="button"
             onClick={() => onToggleTheme("dark")}
-            className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium transition ${
+            className={`flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition cursor-pointer ${
               theme === "dark"
                 ? "bg-[var(--bg-card)] text-[var(--text-primary)] shadow-2xs font-semibold"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -184,7 +151,7 @@ export function Header({
           <button
             type="button"
             onClick={() => onToggleTheme("light")}
-            className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium transition ${
+            className={`flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition cursor-pointer ${
               theme === "light"
                 ? "bg-[var(--bg-card)] text-[var(--text-primary)] shadow-2xs font-semibold"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -195,12 +162,12 @@ export function Header({
           </button>
         </div>
 
-        {/* Keyboard Shortcuts Cheat Sheet Button */}
+        {/* Keyboard Shortcuts Button */}
         {onOpenShortcuts && (
           <button
             type="button"
             onClick={onOpenShortcuts}
-            className="hidden sm:flex items-center justify-center size-6.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-blue-500 hover:border-blue-500/30 transition cursor-pointer"
+            className="hidden sm:flex items-center justify-center size-7 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-blue-500 hover:border-blue-500/30 transition cursor-pointer"
             title="Keyboard shortcuts cheat sheet (⌘/)"
           >
             <Command className="size-3" />
@@ -212,18 +179,25 @@ export function Header({
           <button
             type="button"
             onClick={onLockVault}
-            className="flex items-center gap-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-amber-500 hover:border-amber-500/30 transition cursor-pointer"
+            className="flex items-center gap-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] hover:text-rose-400 hover:border-rose-500/30 transition cursor-pointer"
             title="Lock vault immediately (⌘L)"
           >
-            <Lock className="size-3" />
+            <Lock className="size-3 text-rose-500" />
             <span className="hidden sm:inline text-[10px] font-semibold">Lock</span>
           </button>
         )}
 
-        {/* User initials badge */}
-        <div className="grid size-6.5 place-items-center rounded-md bg-slate-800 text-[10px] font-semibold text-slate-200 border border-slate-700 shrink-0">
-          {userInitials}
-        </div>
+        {/* Interactive Profile Dropdown */}
+        <ProfileDropdown
+          profile={userProfile}
+          scope={scope}
+          density={density}
+          onToggleDensity={onToggleDensity}
+          onOpenEditProfile={onOpenEditProfile}
+          onNavigateToSettings={onNavigateToSettings}
+          onOpenShortcuts={onOpenShortcuts}
+          onLockVault={onLockVault}
+        />
       </div>
     </header>
   );

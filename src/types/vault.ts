@@ -231,3 +231,11 @@ export type EmergencyKit = {
   kdf: string;
   iterations: number;
 };
+
+export type UserProfile = {
+  name: string;
+  email: string;
+  role?: string;
+  avatarColor?: string;
+};
+

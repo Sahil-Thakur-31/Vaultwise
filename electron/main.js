@@ -1,6 +1,8 @@
 const { app, BrowserWindow, shell, ipcMain, Menu, session, clipboard } = require("electron");
 const path = require("path");
 
+const isDev = !app.isPackaged || process.env.NODE_ENV !== "production";
+
 // Enforce single instance lock to prevent duplicate unmonitored processes
 const singleInstanceLock = app.requestSingleInstanceLock();
 if (!singleInstanceLock) {
@@ -10,14 +12,14 @@ if (!singleInstanceLock) {
 
 let mainWindow = null;
 
-function loadWithRetry(win, targetUrl, attemptsRemaining = 20) {
+function loadWithRetry(win, targetUrl, attemptsRemaining = 30) {
   win.loadURL(targetUrl).catch((err) => {
     if (attemptsRemaining > 0 && !win.isDestroyed()) {
       setTimeout(() => {
         if (!win.isDestroyed()) {
           loadWithRetry(win, targetUrl, attemptsRemaining - 1);
         }
-      }, 500);
+      }, 600);
     }
   });
 }
@@ -28,7 +30,7 @@ function createWindow() {
     height: 840,
     minWidth: 980,
     minHeight: 640,
-    title: "Vaultwise - Zero-Knowledge Secure Enclave",
+    title: "Vaultwise — Zero-Knowledge Secure Enclave",
     backgroundColor: "#090d16",
     autoHideMenuBar: true,
     show: false,
@@ -43,14 +45,22 @@ function createWindow() {
       webSecurity: true,
       allowRunningInsecureContent: false,
       experimentalFeatures: false,
-      devTools: false, // Disallow Chromium developer tools completely
+      devTools: isDev, // Allow devTools in development mode for diagnostics
       spellcheck: false,
       autoplayPolicy: "user-gesture-required",
     },
   });
 
-  // Windows & macOS Security: Prevent screen recording, window capture, and snooping malware
-  if (typeof mainWindow.setContentProtection === "function") {
+  // Enforce the title bar so foreign 404 or transient error titles do not hijack the app title
+  mainWindow.on("page-title-updated", (event, title) => {
+    if (!title || title.toLowerCase() === "error" || title.toLowerCase() === "404") {
+      event.preventDefault();
+      mainWindow.setTitle("Vaultwise — Zero-Knowledge Secure Enclave");
+    }
+  });
+
+  // Windows & macOS Content Protection: Only activate in production to prevent blank/black render in dev
+  if (!isDev && typeof mainWindow.setContentProtection === "function") {
     try {
       mainWindow.setContentProtection(true);
     } catch {
@@ -58,37 +68,42 @@ function createWindow() {
     }
   }
 
-  // Remove default application menu bar completely
+  // Remove default application menu bar
   Menu.setApplicationMenu(null);
 
-  // Security: Immediately terminate DevTools if opened via any backdoor or shortcut
-  mainWindow.webContents.on("devtools-opened", () => {
-    mainWindow.webContents.closeDevTools();
-  });
+  // Security: In production, disallow devtools opening
+  if (!isDev) {
+    mainWindow.webContents.on("devtools-opened", () => {
+      mainWindow.webContents.closeDevTools();
+    });
 
-  // Security: Intercept keyboard accelerators for developer tools inside the webContents
-  mainWindow.webContents.on("before-input-event", (event, input) => {
-    const isDevTools =
-      input.key === "F12" ||
-      ((input.control || input.meta) &&
-        input.shift &&
-        (input.key.toLowerCase() === "i" ||
-          input.key.toLowerCase() === "j" ||
-          input.key.toLowerCase() === "c")) ||
-      ((input.control || input.meta) && input.key.toLowerCase() === "u") ||
-      ((input.control || input.meta) && input.key.toLowerCase() === "s");
+    mainWindow.webContents.on("before-input-event", (event, input) => {
+      const isDevTools =
+        input.key === "F12" ||
+        ((input.control || input.meta) &&
+          input.shift &&
+          (input.key.toLowerCase() === "i" ||
+            input.key.toLowerCase() === "j" ||
+            input.key.toLowerCase() === "c")) ||
+        ((input.control || input.meta) && input.key.toLowerCase() === "u") ||
+        ((input.control || input.meta) && input.key.toLowerCase() === "s");
 
-    if (isDevTools) {
-      event.preventDefault();
-    }
-  });
+      if (isDevTools) {
+        event.preventDefault();
+      }
+    });
+  }
 
   // Security: Restrict in-window navigations to localhost only
   mainWindow.webContents.on("will-navigate", (event, navigationUrl) => {
-    const parsed = new URL(navigationUrl);
-    if (parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+    try {
+      const parsed = new URL(navigationUrl);
+      if (parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") {
+        event.preventDefault();
+        shell.openExternal(navigationUrl);
+      }
+    } catch {
       event.preventDefault();
-      shell.openExternal(navigationUrl);
     }
   });
 
@@ -98,6 +113,17 @@ function createWindow() {
       shell.openExternal(url);
     }
     return { action: "deny" };
+  });
+
+  // Handle transient load failures by retrying
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
+    if (errorCode === -3) return; // Aborted by user / redirect
+    console.warn(`[Vaultwise Desktop] Load failed (${errorCode}: ${errorDescription}) on ${validatedURL}. Retrying...`);
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(validatedURL).catch(() => {});
+      }
+    }, 1000);
   });
 
   // Target local Next.js dev server or local build
